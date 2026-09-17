@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowRightLeft, Mic, MicOff, Volume2, Copy, Trash2, Loader2, Square, Info, History, Clock } from 'lucide-react';
+import { ArrowRightLeft, Mic, MicOff, Volume2, Copy, Trash2, Loader2, Square, History, Clock } from 'lucide-react';
 import { LANGUAGES, TARGET_LANGUAGES } from '../constants';
 import { translateClientSide } from '../utils/clientTranslator';
 import { TranslationHistoryItem } from '../types';
@@ -152,7 +152,7 @@ export default function Translator({ initialItem, onOpenHistory }: TranslatorPro
     cleanupRecognition();
   };
 
-  const startListening = async () => {
+  const startListening = () => {
     setError(null);
     isStoppingRef.current = false;
 
@@ -160,30 +160,17 @@ export default function Translator({ initialItem, onOpenHistory }: TranslatorPro
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      setError("Speech recognition is blocked in embedded iframe previews or unsupported in this browser. Please open the app in a new tab (or use Google Chrome / Edge) and allow microphone permissions.");
+      setError("صوتی ان پٹ (Voice Input) کے لیے گوگل کروم (Google Chrome) یا مائیکروسافٹ ایج (Edge) استعمال کریں۔ (Please use Google Chrome or Microsoft Edge for voice input).");
       return;
     }
 
     // Clean up any existing instance cleanly
     cleanupRecognition();
 
-    // Check & request microphone permission if supported
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        // Immediately release tracks so SpeechRecognition has free access to the hardware
-        stream.getTracks().forEach((track) => track.stop());
-      } catch (permErr: any) {
-        if (permErr.name === 'NotAllowedError' || permErr.name === 'PermissionDeniedError') {
-          setError("Microphone permission was denied. Please allow microphone access in your browser settings or URL bar.");
-          return;
-        }
-      }
-    }
-
     try {
       const recognition = new SpeechRecognition();
-      recognition.continuous = true;
+      // continuous = false ensures reliable capture on both mobile Android and Desktop browsers
+      recognition.continuous = false;
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
 
@@ -237,11 +224,11 @@ export default function Translator({ initialItem, onOpenHistory }: TranslatorPro
         setIsListening(false);
 
         if (err === 'not-allowed' || err === 'service-not-allowed') {
-          setError("Microphone permission was denied. Please allow microphone access in your browser settings.");
+          setError("مائیکروفون کی اجازت نہیں ملی۔ براہ کرم براؤزر کی سیٹنگز میں مائیک کی اجازت دیں یا ایپ کو نئی ٹیب میں کھولیں۔ (Microphone permission denied. Please allow microphone in browser).");
         } else if (err === 'network') {
-          setError("Speech recognition network error. Please check your internet connection.");
+          setError("انٹرنیٹ کنکشن کا مسئلہ ہے۔ براہ کرم نیٹ ورک چیک کریں۔ (Network error in voice recognition).");
         } else if (err === 'audio-capture') {
-          setError("No microphone was detected on your device.");
+          setError("مائیکروفون نہیں ملا یا مصروف ہے۔ براہ کرم چیک کریں۔ (No microphone detected or device is busy).");
         }
       };
 
@@ -257,7 +244,7 @@ export default function Translator({ initialItem, onOpenHistory }: TranslatorPro
       setIsListening(false);
       if (err.name !== 'InvalidStateError') {
         console.warn("Could not start speech recognition:", err);
-        setError("Could not start microphone. Please try again.");
+        setError("مائیکروفون شروع نہیں ہو سکا۔ براہ کرم دوبارہ کوشش کریں۔ (Could not start microphone).");
       }
     }
   };
@@ -536,15 +523,6 @@ export default function Translator({ initialItem, onOpenHistory }: TranslatorPro
             <option key={lang} value={lang}>{lang}</option>
           ))}
         </select>
-      </div>
-
-      {/* Info Banner for Voice/Audio */}
-      <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-xl border border-blue-100 text-xs sm:text-sm flex items-start space-x-3">
-        <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-        <div>
-          <span className="font-semibold block mb-0.5">Voice & Audio Note:</span>
-          Browser security policies in embedded preview iframes may restrict microphone access. If speech recognition or speaker output does not start, please open the app in a <strong>New Tab</strong> (using the share/open menu) and allow microphone permissions.
-        </div>
       </div>
 
       {error && (
